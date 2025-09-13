@@ -18,7 +18,7 @@ git push -u origin main
 5. Railway auto-detects Python and deploys!
 6. Add environment variable:
    - Key: `GROQ_API_KEY`
-   - Value: `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`
+   - Value: api key
 
 ## Step 3: Get Your Backend URL
 After deployment, Railway gives you a URL like:
