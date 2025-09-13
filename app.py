@@ -47,7 +47,11 @@ app.mount("/static", StaticFiles(directory="frontend/build/static"), name="stati
 
 @app.get("/api")
 def api_root():
-    return {"message": "Excel Mock Interviewer API"}
+    return {"message": "Excel Mock Interviewer API", "status": "running"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "groq_key_set": bool(GROQ_API_KEY)}
 
 @app.get("/")
 def serve_frontend():
