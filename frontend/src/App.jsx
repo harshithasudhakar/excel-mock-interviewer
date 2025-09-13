@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 
 const API_BASE = process.env.NODE_ENV === 'production' 
-  ? 'https://excel-interviewer-api.onrender.com' 
+  ? 'https://excel-interviewer-api-production.up.railway.app' 
   : 'http://localhost:8000';
 
 function App() {
