@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 
 const API_BASE = process.env.NODE_ENV === 'production' 
-  ? 'https://web-production-38b9.up.railway.app' 
+  ? '/api' 
   : 'http://localhost:8000';
 
 function App() {
