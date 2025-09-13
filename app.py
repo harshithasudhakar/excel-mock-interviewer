@@ -3,6 +3,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 # Use ExcelInterviewer for interview logic
@@ -40,11 +42,25 @@ class AnswerRequest(BaseModel):
     answer: str
 
 
-@app.get("/")
-def root():
+# Serve React static files
+app.mount("/static", StaticFiles(directory="frontend/build/static"), name="static")
+
+@app.get("/api")
+def api_root():
     return {"message": "Excel Mock Interviewer API"}
 
-@app.post("/start")
+@app.get("/")
+def serve_frontend():
+    return FileResponse("frontend/build/index.html")
+
+@app.get("/{path:path}")
+def serve_frontend_routes(path: str):
+    # Serve React app for all non-API routes
+    if path.startswith("api/"):
+        return {"error": "API endpoint not found"}
+    return FileResponse("frontend/build/index.html")
+
+@app.post("/api/start")
 def start_interview():
     try:
         global session
@@ -69,7 +85,7 @@ def start_interview():
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
-@app.post("/answer")
+@app.post("/api/answer")
 def submit_answer(req: AnswerRequest):
     try:
         evaluation = excel_interviewer.evaluate_response(session, req.answer)
@@ -110,7 +126,7 @@ def submit_answer(req: AnswerRequest):
         return JSONResponse({"error": f"Server error: {str(e)}"}, status_code=500)
 
 
-@app.post("/timeout")
+@app.post("/api/timeout")
 def handle_timeout():
     """Handle when timer runs out"""
     try:
@@ -169,7 +185,7 @@ Assessment Complete"""
         fallback_summary = "Interview ended due to timeout. Please try again when you have more time available."
         return JSONResponse({"summary": fallback_summary, "completed": True})
 
-@app.get("/summary")
+@app.get("/api/summary")
 def get_summary():
     try:
         summary = excel_interviewer.generate_summary(session)
