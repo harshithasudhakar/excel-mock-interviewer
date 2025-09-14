@@ -52,6 +52,33 @@ def api_root():
 def health_check():
     return {"status": "healthy", "groq_key_set": bool(GROQ_API_KEY)}
 
+@app.get("/debug/llm")
+def debug_llm():
+    """Debug endpoint to test LLM in production"""
+    try:
+        from groq import Groq
+        client = Groq(api_key=GROQ_API_KEY)
+        
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": "Generate a simple Excel question about SUM function."}],
+            temperature=0.7,
+            max_tokens=100
+        )
+        
+        return {
+            "llm_working": True,
+            "api_key_length": len(GROQ_API_KEY) if GROQ_API_KEY else 0,
+            "test_question": response.choices[0].message.content.strip(),
+            "model": "llama-3.1-8b-instant"
+        }
+    except Exception as e:
+        return {
+            "llm_working": False,
+            "error": str(e),
+            "api_key_length": len(GROQ_API_KEY) if GROQ_API_KEY else 0
+        }
+
 # Mount static files AFTER API routes to avoid conflicts
 # This is done at the end of the file
 
@@ -189,6 +216,19 @@ def get_summary():
         return JSONResponse({"summary": summary, "score": overall_score})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/debug/session")
+def debug_session():
+    """Debug current session state"""
+    return {
+        "session_id": session.session_id,
+        "state": session.state,
+        "responses_count": len(session.responses),
+        "messages_count": len(session.messages) if hasattr(session, 'messages') else 0,
+        "current_question_id": session.current_question.id if session.current_question else None,
+        "groq_key_set": bool(GROQ_API_KEY),
+        "groq_key_prefix": GROQ_API_KEY[:10] if GROQ_API_KEY else "None"
+    }
 
 # Mount static files AFTER all API routes
 if os.path.exists("frontend/build/index.html"):
