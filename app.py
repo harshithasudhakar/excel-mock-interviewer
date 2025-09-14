@@ -52,13 +52,32 @@ def api_root():
 def health_check():
     return {"status": "healthy", "groq_key_set": bool(GROQ_API_KEY)}
 
-# Serve static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Serve static files if directory exists
+try:
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+except:
+    pass
 
 @app.get("/", response_class=HTMLResponse)
 def root():
-    with open("static/index.html", "r") as f:
-        return HTMLResponse(f.read())
+    try:
+        with open("static/index.html", "r") as f:
+            return HTMLResponse(f.read())
+    except:
+        # Fallback HTML if file doesn't exist
+        return HTMLResponse("""
+<!DOCTYPE html>
+<html><head><title>Excel Mock Interviewer</title></head>
+<body>
+<h1>🎯 Excel Mock Interviewer</h1>
+<p>API is running. Use /api/start to begin.</p>
+<script>
+fetch('/api/start', {method: 'POST'})
+.then(r => r.json())
+.then(d => alert('API Test: ' + JSON.stringify(d)))
+</script>
+</body></html>
+        """)
 
 @app.post("/api/start")
 def start_interview():
