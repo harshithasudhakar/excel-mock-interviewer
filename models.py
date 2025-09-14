@@ -54,6 +54,11 @@ class InterviewSession(BaseModel):
     @property
     def conversation_history(self):
         return self.transcript
+    
+    @property
+    def messages(self):
+        """Alias for transcript to maintain compatibility"""
+        return self.transcript
 
     def calculate_overall_score(self) -> float:
         if not self.responses:

@@ -241,7 +241,7 @@ Assessment Complete"""
             
         # Get previous questions to avoid repetition
         if hasattr(session, 'messages') and session.messages:
-            asked_questions = [msg.content for msg in session.messages if msg.role == 'assistant' and '?' in msg.content]
+            asked_questions = [msg['content'] for msg in session.messages if msg['role'] == 'assistant' and '?' in msg['content']]
             if asked_questions:
                 previous_questions = f"\nPrevious questions asked:\n{chr(10).join([f'- {q[:80]}...' for q in asked_questions[-3:]])}"
         
