@@ -319,6 +319,14 @@
                 }
             };
             
+            voiceDetection.onaudiostart = () => {
+                // Stop TTS on any audio input
+                if (speechSynthesis.speaking) {
+                    speechSynthesis.cancel();
+                    console.log('🛑 TTS STOPPED - Audio input detected');
+                }
+            };
+            
             voiceDetection.onresult = (event) => {
                 // IMMEDIATELY stop TTS on any voice input
                 if (speechSynthesis.speaking) {

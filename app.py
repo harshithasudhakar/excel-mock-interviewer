@@ -52,22 +52,22 @@ def api_root():
 def health_check():
     return {"status": "healthy", "groq_key_set": bool(GROQ_API_KEY)}
 
-# Serve React build files
-try:
+# Check if React build exists, otherwise use static HTML
+import os
+if os.path.exists("frontend/build/index.html"):
+    # Serve React build
     app.mount("/static", StaticFiles(directory="frontend/build/static"), name="static")
     app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
-except:
-    # Fallback to original static files
-    try:
-        app.mount("/static", StaticFiles(directory="static"), name="static")
-        
-        @app.get("/", response_class=HTMLResponse)
-        def root():
+else:
+    # Serve static HTML
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+    
+    @app.get("/", response_class=HTMLResponse)
+    def root():
+        try:
             with open("static/index.html", "r") as f:
                 return HTMLResponse(f.read())
-    except:
-        @app.get("/", response_class=HTMLResponse)
-        def root():
+        except:
             return HTMLResponse("""
 <!DOCTYPE html>
 <html><head><title>Excel Mock Interviewer</title></head>
