@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Mock Interviewer</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { background: #f5f5f5; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; }
+        .timer { font-size: 24px; color: #dc3545; font-weight: bold; }
+        .question { background: white; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .feedback { background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .summary { background: #fff3cd; padding: 15px; border-radius: 5px; white-space: pre-line; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Excel Mock Interviewer</h1>
+    <p>Test your Microsoft Excel skills with our AI-powered interviewer!</p>
+    
+    <div id="start-screen">
+        <div class="container">
+            <h2>Ready to begin your Excel skills assessment?</h2>
+            <p>This interview will take about 15-20 minutes and cover:</p>
+            <ul>
+                <li>Basic Excel operations and formulas</li>
+                <li>Data analysis techniques</li>
+                <li>Advanced functions and best practices</li>
+            </ul>
+            <button onclick="startInterview()">Start Interview</button>
+        </div>
+    </div>
+
+    <div id="interview-screen" style="display: none;">
+        <div class="container">
+            <div class="timer">Time: <span id="timer">60</span>s</div>
+            <div id="intro" class="question"></div>
+            <div id="question" class="question"></div>
+            <textarea id="answer" placeholder="Type your answer here..."></textarea>
+            <button onclick="submitAnswer()">Submit Answer</button>
+            <div id="feedback" class="feedback" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div id="summary-screen" style="display: none;">
+        <div class="container">
+            <h2>🎉 Interview Complete!</h2>
+            <div id="summary" class="summary"></div>
+            <button onclick="location.reload()">Take Another Interview</button>
+        </div>
+    </div>
+
+    <script>
+        let timerInterval;
+        let timeLeft = 60;
+
+        async function startInterview() {
+            try {
+                const response = await fetch('/api/start', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                document.getElementById('start-screen').style.display = 'none';
+                document.getElementById('interview-screen').style.display = 'block';
+                
+                document.getElementById('intro').innerHTML = data.intro;
+                document.getElementById('question').innerHTML = '<strong>Question:</strong> ' + data.question;
+                
+                timeLeft = data.timer || 60;
+                startTimer();
+            } catch (error) {
+                alert('Failed to start interview: ' + error.message);
+            }
+        }
+
+        async function submitAnswer() {
+            const answer = document.getElementById('answer').value.trim();
+            if (!answer) {
+                alert('Please provide an answer before submitting.');
+                return;
+            }
+
+            clearInterval(timerInterval);
+
+            try {
+                const response = await fetch('/api/answer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ answer })
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                // Show feedback
+                document.getElementById('feedback').innerHTML = data.feedback;
+                document.getElementById('feedback').style.display = 'block';
+
+                if (data.completed) {
+                    // Show summary
+                    setTimeout(() => {
+                        document.getElementById('interview-screen').style.display = 'none';
+                        document.getElementById('summary-screen').style.display = 'block';
+                        document.getElementById('summary').innerHTML = data.summary;
+                    }, 2000);
+                } else {
+                    // Next question
+                    setTimeout(() => {
+                        document.getElementById('question').innerHTML = '<strong>Question:</strong> ' + data.question;
+                        document.getElementById('answer').value = '';
+                        document.getElementById('feedback').style.display = 'none';
+                        timeLeft = data.timer || 60;
+                        startTimer();
+                    }, 2000);
+                }
+            } catch (error) {
+                alert('Failed to submit answer: ' + error.message);
+            }
+        }
+
+        function startTimer() {
+            document.getElementById('timer').textContent = timeLeft;
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeout();
+                }
+            }, 1000);
+        }
+
+        async function handleTimeout() {
+            try {
+                const response = await fetch('/api/timeout', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.completed) {
+                    document.getElementById('interview-screen').style.display = 'none';
+                    document.getElementById('summary-screen').style.display = 'block';
+                    document.getElementById('summary').innerHTML = data.summary;
+                } else {
+                    document.getElementById('feedback').innerHTML = data.feedback;
+                    document.getElementById('feedback').style.display = 'block';
+                    
+                    setTimeout(() => {
+                        document.getElementById('question').innerHTML = '<strong>Question:</strong> ' + data.question;
+                        document.getElementById('answer').value = '';
+                        document.getElementById('feedback').style.display = 'none';
+                        timeLeft = data.timer || 60;
+                        startTimer();
+                    }, 2000);
+                }
+            } catch (error) {
+                alert('Timeout error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

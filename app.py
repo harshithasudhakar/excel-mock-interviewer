@@ -2,7 +2,8 @@
 # FastAPI backend for Excel Mock Interviewer
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from pydantic import BaseModel
 
@@ -51,9 +52,13 @@ def api_root():
 def health_check():
     return {"status": "healthy", "groq_key_set": bool(GROQ_API_KEY)}
 
-@app.get("/")
+# Serve static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/", response_class=HTMLResponse)
 def root():
-    return {"message": "Excel Mock Interviewer API", "status": "running", "endpoints": ["/api/start", "/api/answer", "/api/timeout", "/api/summary"]}
+    with open("static/index.html", "r") as f:
+        return HTMLResponse(f.read())
 
 @app.post("/api/start")
 def start_interview():
