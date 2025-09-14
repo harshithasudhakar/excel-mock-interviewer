@@ -52,43 +52,42 @@ def api_root():
 def health_check():
     return {"status": "healthy", "groq_key_set": bool(GROQ_API_KEY)}
 
-# Serve static files if directory exists
+# Serve React build files
 try:
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+    app.mount("/static", StaticFiles(directory="frontend/build/static"), name="static")
+    app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
 except:
-    pass
-
-@app.get("/", response_class=HTMLResponse)
-def root():
+    # Fallback to original static files
     try:
-        with open("static/index.html", "r") as f:
-            return HTMLResponse(f.read())
+        app.mount("/static", StaticFiles(directory="static"), name="static")
+        
+        @app.get("/", response_class=HTMLResponse)
+        def root():
+            with open("static/index.html", "r") as f:
+                return HTMLResponse(f.read())
     except:
-        # Fallback HTML if file doesn't exist
-        return HTMLResponse("""
+        @app.get("/", response_class=HTMLResponse)
+        def root():
+            return HTMLResponse("""
 <!DOCTYPE html>
 <html><head><title>Excel Mock Interviewer</title></head>
 <body>
 <h1>🎯 Excel Mock Interviewer</h1>
 <p>API is running. Use /api/start to begin.</p>
-<script>
-fetch('/api/start', {method: 'POST'})
-.then(r => r.json())
-.then(d => alert('API Test: ' + JSON.stringify(d)))
-</script>
 </body></html>
-        """)
+            """)
 
 @app.post("/api/start")
 def start_interview():
     try:
-        global session
+        global session, excel_interviewer
         # Reset session for new interview
         session = InterviewSession(
             session_id=str(uuid.uuid4()),
             state=InterviewState.INTRO
         )
-        # Reset interviewer state
+        # Reset interviewer state completely
+        excel_interviewer.current_question_index = 0
         
         intro = excel_interviewer.start_interview(session)
         question = excel_interviewer.get_next_question(session)

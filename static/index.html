@@ -286,26 +286,71 @@
             };
         }
         
-        // Initialize voice detection for instant audio pause
+        // Initialize voice detection for instant audio pause and auto-transcription
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             voiceDetection = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
             voiceDetection.continuous = true;
             voiceDetection.interimResults = true;
             voiceDetection.lang = 'en-US';
             
+            voiceDetection.onstart = () => {
+                console.log('Voice detection active');
+            };
+            
             voiceDetection.onspeechstart = () => {
-                // Instantly stop TTS when voice detected
+                // INSTANTLY stop TTS when ANY speech is detected
                 if (speechSynthesis.speaking) {
                     speechSynthesis.cancel();
-                    console.log('Voice detected - TTS stopped');
+                    console.log('🛑 TTS STOPPED - User speaking detected');
+                }
+                
+                // Auto-start transcription if not already listening
+                if (!isListening) {
+                    startListening();
+                    console.log('Auto-started transcription');
                 }
             };
             
-            voiceDetection.onresult = () => {
-                // Keep TTS stopped while user is speaking
+            voiceDetection.onsoundstart = () => {
+                // Stop TTS even on sound detection (before speech recognition)
                 if (speechSynthesis.speaking) {
                     speechSynthesis.cancel();
+                    console.log('🛑 TTS STOPPED - Sound detected');
                 }
+            };
+            
+            voiceDetection.onresult = (event) => {
+                // IMMEDIATELY stop TTS on any voice input
+                if (speechSynthesis.speaking) {
+                    speechSynthesis.cancel();
+                    console.log('🛑 TTS STOPPED - Voice input detected');
+                }
+                
+                // Fill text box with transcription if not already listening
+                if (!isListening) {
+                    let transcript = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        transcript += event.results[i][0].transcript;
+                    }
+                    document.getElementById('answer').value = transcript;
+                }
+            };
+            
+            voiceDetection.onerror = (event) => {
+                console.log('Voice detection error:', event.error);
+            };
+            
+            voiceDetection.onend = () => {
+                // Restart voice detection for continuous monitoring
+                setTimeout(() => {
+                    if (voiceDetection) {
+                        try {
+                            voiceDetection.start();
+                        } catch (e) {
+                            console.log('Voice detection restart failed:', e);
+                        }
+                    }
+                }, 1000);
             };
         }
 
@@ -326,6 +371,9 @@
                 currentQuestionText = data.question;
                 document.getElementById('question').innerHTML = '<strong>Question:</strong> ' + data.question;
                 questionCount = 1;
+                
+                // Reset interviewer state to prevent question repetition
+                excel_interviewer.current_question_index = 0;
                 
                 // Auto-speak with natural voice and start voice detection
                 setTimeout(() => {
@@ -397,6 +445,7 @@
                         // Auto-speak feedback and next question
                         setTimeout(() => {
                             speakTextNaturally(data.feedback + '. Next question: ' + data.question);
+                            startVoiceDetection(); // Restart voice detection for new question
                             startAutoListening();
                         }, 500);
                     }, 2000);
@@ -498,8 +547,13 @@
                     console.log('Using voice:', selectedVoice.name);
                 }
                 
-                // Start voice detection before speaking
+                // Start voice detection BEFORE speaking for instant interruption
                 startVoiceDetection();
+                
+                // Add immediate interruption on speech start
+                currentUtterance.onstart = () => {
+                    console.log('TTS started - voice detection active');
+                };
                 
                 speechSynthesis.speak(currentUtterance);
             }
@@ -540,13 +594,13 @@
             // Auto-start listening after TTS finishes
             if (currentUtterance) {
                 currentUtterance.onend = () => {
-                    stopVoiceDetection(); // Stop voice detection when TTS ends
+                    // Keep voice detection running for instant response
                     setTimeout(() => {
                         if (!isListening) {
                             startListening();
                             document.getElementById('status').textContent = '🎤 Ready for your answer. Speak now...';
                         }
-                    }, 500); // Reduced delay for faster response
+                    }, 500);
                 };
             }
         }
