@@ -7,12 +7,37 @@ import random
 import html
 
 class ExcelInterviewer:
-    def __init__(self, api_key: str):
-        self.client = Groq(
-            api_key=api_key,
-            timeout=30.0,  # 30 second timeout
-            max_retries=3   # Retry failed requests
-        )
+    def __init__(self, api_key: str, openai_key: str = None):
+        self.groq_client = None
+        self.openai_client = None
+        
+        # Try Groq first
+        if api_key:
+            try:
+                self.groq_client = Groq(
+                    api_key=api_key,
+                    timeout=30.0,
+                    max_retries=3
+                )
+                print(f"Groq client initialized successfully")
+            except Exception as e:
+                print(f"Failed to initialize Groq client: {e}")
+        
+        # Try Hugging Face as free fallback
+        if openai_key:  # Reuse this param for HF token
+            try:
+                import requests
+                self.hf_token = openai_key
+                self.hf_client = True
+                print(f"Hugging Face client initialized as fallback")
+            except Exception as e:
+                print(f"Failed to initialize Hugging Face client: {e}")
+                self.hf_client = False
+        else:
+            self.hf_client = False
+        
+        # Set primary client
+        self.client = self.groq_client
         
     def start_interview(self, session: InterviewSession) -> str:
         session.state = InterviewState.INTRO
@@ -283,23 +308,56 @@ Return only the question text in a friendly, conversational tone."""
             print(f"Previous questions count: {len(asked_questions) if 'asked_questions' in locals() else 0}")
             print(f"Prompt length: {len(prompt)} chars")
             
-            # Add timeout and retry for Railway deployment
-            import time
-            for attempt in range(3):
+            # Try Groq first, then OpenAI as fallback
+            response = None
+            
+            if self.groq_client:
                 try:
-                    response = self.client.chat.completions.create(
+                    print("Trying Groq API...")
+                    response = self.groq_client.chat.completions.create(
                         model="llama-3.1-8b-instant",
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0.7,
                         max_tokens=400,
-                        timeout=30  # 30 second timeout
+                        timeout=30
                     )
-                    break  # Success, exit retry loop
-                except Exception as retry_error:
-                    print(f"Attempt {attempt + 1} failed: {retry_error}")
-                    if attempt == 2:  # Last attempt
-                        raise retry_error
-                    time.sleep(2)  # Wait 2 seconds before retry
+                    print("Groq API successful")
+                except Exception as groq_error:
+                    print(f"Groq API failed: {groq_error}")
+            
+            if not response and self.hf_client:
+                try:
+                    print("Trying Hugging Face API as fallback...")
+                    import requests
+                    
+                    hf_url = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
+                    headers = {"Authorization": f"Bearer {self.hf_token}"} if hasattr(self, 'hf_token') else {}
+                    
+                    hf_response = requests.post(
+                        hf_url,
+                        headers=headers,
+                        json={"inputs": prompt[:500], "parameters": {"max_length": 200}},
+                        timeout=30
+                    )
+                    
+                    if hf_response.status_code == 200:
+                        hf_data = hf_response.json()
+                        generated_text = hf_data[0].get('generated_text', '') if hf_data else ''
+                        
+                        # Create mock response object
+                        class MockResponse:
+                            def __init__(self, text):
+                                self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': text})})()]
+                        
+                        response = MockResponse(generated_text or "How would you use Excel to analyze sales data?")
+                        print("Hugging Face API successful")
+                    else:
+                        print(f"Hugging Face API failed: {hf_response.status_code}")
+                except Exception as hf_error:
+                    print(f"Hugging Face API failed: {hf_error}")
+            
+            if not response:
+                raise Exception("Both Groq and Hugging Face APIs failed")
             
             generated_question = response.choices[0].message.content.strip()
             print(f"Generated question: {generated_question}")

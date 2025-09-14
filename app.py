@@ -29,13 +29,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+HF_TOKEN = os.getenv("HF_TOKEN", "")  # Hugging Face token (free)
 
 # Check if running on Railway
 RAILWAY_ENVIRONMENT = os.getenv("RAILWAY_ENVIRONMENT_NAME", "local")
 print(f"Running in environment: {RAILWAY_ENVIRONMENT}")
 print(f"Groq API key configured: {bool(GROQ_API_KEY)}")
+print(f"Hugging Face token configured: {bool(HF_TOKEN)}")
 
-excel_interviewer = ExcelInterviewer(api_key=GROQ_API_KEY)
+excel_interviewer = ExcelInterviewer(api_key=GROQ_API_KEY, openai_key=HF_TOKEN)
 
 # Store session in memory (single user for MVP)
 session = InterviewSession(
@@ -92,26 +94,63 @@ def debug_llm():
 def start_interview():
     try:
         global session, excel_interviewer
+        print(f"Starting interview - Groq key available: {bool(GROQ_API_KEY)}")
+        
         # Reset session for new interview
         session = InterviewSession(
             session_id=str(uuid.uuid4()),
             state=InterviewState.INTRO
         )
-        # Reset interviewer state completely
-        excel_interviewer.current_question_index = 0
         
-        intro = excel_interviewer.start_interview(session)
-        question = excel_interviewer.get_next_question(session)
+        # Reset interviewer state if attribute exists
+        if hasattr(excel_interviewer, 'current_question_index'):
+            excel_interviewer.current_question_index = 0
+        
+        try:
+            intro = excel_interviewer.start_interview(session)
+        except Exception as intro_error:
+            print(f"Intro generation failed: {intro_error}")
+            intro = "Welcome to the Excel Mock Interviewer! Let's test your Excel skills."
+        
+        try:
+            question = excel_interviewer.get_next_question(session)
+        except Exception as question_error:
+            print(f"Question generation failed: {question_error}")
+            # Fallback to hardcoded question
+            question = "How would you calculate the sum of values in cells A1 through A10?"
+            from models import Question, QuestionType, DifficultyLevel
+            session.current_question = Question(
+                id="fallback_1",
+                type=QuestionType.FORMULA,
+                difficulty=DifficultyLevel.BEGINNER,
+                question=question,
+                expected_answer="=SUM(A1:A10)",
+                scoring_criteria={"basic": "SUM function usage"}
+            )
         
         if not question:
-            return JSONResponse({"error": "No questions available"})
+            question = "How would you calculate the sum of values in cells A1 through A10?"
         
         # Get timer based on difficulty
-        timer_seconds = 60 if session.current_question.difficulty == DifficultyLevel.BEGINNER else 90 if session.current_question.difficulty == DifficultyLevel.INTERMEDIATE else 120
+        timer_seconds = 90  # Default timer
+        if session.current_question and hasattr(session.current_question, 'difficulty'):
+            if session.current_question.difficulty == DifficultyLevel.BEGINNER:
+                timer_seconds = 90
+            elif session.current_question.difficulty == DifficultyLevel.INTERMEDIATE:
+                timer_seconds = 120
+            else:
+                timer_seconds = 150
         
         return JSONResponse({"intro": intro, "question": question, "timer": timer_seconds})
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        print(f"Critical error in start_interview: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({
+            "error": "Interview initialization failed",
+            "details": str(e),
+            "fallback_available": True
+        }, status_code=500)
 
 
 @app.post("/api/answer")
