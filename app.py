@@ -15,6 +15,16 @@ import os
 
 app = FastAPI()
 
+# Add CORS for frontend
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
