@@ -273,6 +273,12 @@ Focus on: {'formulas and basic functions' if difficulty == DifficultyLevel.BEGIN
 Return only the question text in a friendly, conversational tone."""
         
         try:
+            print(f"\n=== LLM QUESTION GENERATION ===")
+            print(f"Difficulty: {difficulty.value}")
+            print(f"Starter: {starter}")
+            print(f"Previous questions count: {len(asked_questions) if 'asked_questions' in locals() else 0}")
+            print(f"Prompt length: {len(prompt)} chars")
+            
             response = self.client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[{"role": "user", "content": prompt}],
@@ -281,6 +287,8 @@ Return only the question text in a friendly, conversational tone."""
             )
             
             generated_question = response.choices[0].message.content.strip()
+            print(f"Generated question: {generated_question}")
+            print(f"Question length: {len(generated_question)} chars")
             
             # Create a dynamic question object
             question_id = f"gen_{len(session.responses) + 1}"
@@ -295,21 +303,28 @@ Return only the question text in a friendly, conversational tone."""
             
             # Add question to conversation history
             session.add_message("assistant", generated_question)
+            print(f"Question added to session. Total messages: {len(session.messages)}")
+            print(f"=== END LLM GENERATION ===\n")
             
             return generated_question
             
         except Exception as e:
-            print(f"Question generation error: {e}")
+            print(f"\n=== LLM GENERATION FAILED ===")
+            print(f"Error: {e}")
+            print(f"Falling back to question bank...")
+            
             # Fallback to example questions
             if example_questions:
-                print(f"Using fallback question from question bank")
                 question = example_questions[0]
+                print(f"Using fallback question: {question.question}")
                 session.current_question = question
                 # Add question to conversation history
                 session.add_message("assistant", question.question)
+                print(f"=== FALLBACK COMPLETE ===\n")
                 return question.question
             
             print(f"No fallback questions available, ending interview early")
+            print(f"=== INTERVIEW ENDED EARLY ===\n")
             session.state = InterviewState.SUMMARY
             return None
     
