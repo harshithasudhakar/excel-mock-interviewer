@@ -53,7 +53,6 @@ def health_check():
     return {"status": "healthy", "groq_key_set": bool(GROQ_API_KEY)}
 
 # Check if React build exists, otherwise use static HTML
-import os
 if os.path.exists("frontend/build/index.html"):
     # Serve React build
     app.mount("/static", StaticFiles(directory="frontend/build/static"), name="static")
