@@ -286,24 +286,25 @@
             };
         }
         
-        // Initialize voice detection for auto-pause
+        // Initialize voice detection for instant audio pause
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             voiceDetection = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
             voiceDetection.continuous = true;
             voiceDetection.interimResults = true;
             voiceDetection.lang = 'en-US';
             
-            voiceDetection.onresult = () => {
-                // User is speaking - pause TTS
-                if (currentUtterance && speechSynthesis.speaking) {
-                    speechSynthesis.pause();
+            voiceDetection.onspeechstart = () => {
+                // Instantly stop TTS when voice detected
+                if (speechSynthesis.speaking) {
+                    speechSynthesis.cancel();
+                    console.log('Voice detected - TTS stopped');
                 }
             };
             
-            voiceDetection.onspeechend = () => {
-                // User stopped speaking - resume TTS
-                if (currentUtterance && speechSynthesis.paused) {
-                    setTimeout(() => speechSynthesis.resume(), 500);
+            voiceDetection.onresult = () => {
+                // Keep TTS stopped while user is speaking
+                if (speechSynthesis.speaking) {
+                    speechSynthesis.cancel();
                 }
             };
         }
@@ -457,7 +458,7 @@
             }
         }
         
-        // Enhanced audio functions
+        // Enhanced audio functions with natural voice
         function speakTextNaturally(text) {
             if ('speechSynthesis' in window) {
                 // Stop any current speech
@@ -465,23 +466,40 @@
                 
                 currentUtterance = new SpeechSynthesisUtterance(text);
                 
-                // Make it sound more natural
-                currentUtterance.rate = 0.85;
-                currentUtterance.pitch = 0.95;
-                currentUtterance.volume = 0.9;
+                // Human-like settings
+                currentUtterance.rate = 0.9;  // Slightly faster for naturalness
+                currentUtterance.pitch = 1.0; // Normal pitch
+                currentUtterance.volume = 0.8;
                 
-                // Try to use a more natural voice
+                // Find the most natural voice available
                 const voices = speechSynthesis.getVoices();
-                const naturalVoice = voices.find(voice => 
-                    voice.name.includes('Natural') || 
-                    voice.name.includes('Enhanced') ||
-                    voice.name.includes('Premium') ||
-                    (voice.lang.startsWith('en') && voice.localService)
-                );
                 
-                if (naturalVoice) {
-                    currentUtterance.voice = naturalVoice;
+                // Priority order for natural voices
+                const preferredVoices = [
+                    // Google voices (most natural)
+                    voices.find(v => v.name.includes('Google') && v.lang.startsWith('en')),
+                    // Microsoft voices
+                    voices.find(v => v.name.includes('Microsoft') && v.lang.startsWith('en')),
+                    // Enhanced/Premium voices
+                    voices.find(v => (v.name.includes('Enhanced') || v.name.includes('Premium')) && v.lang.startsWith('en')),
+                    // Natural voices
+                    voices.find(v => v.name.includes('Natural') && v.lang.startsWith('en')),
+                    // Local service voices (usually better quality)
+                    voices.find(v => v.localService && v.lang.startsWith('en')),
+                    // Female voices (often sound more natural)
+                    voices.find(v => (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Karen')) && v.lang.startsWith('en')),
+                    // Any English voice
+                    voices.find(v => v.lang.startsWith('en'))
+                ];
+                
+                const selectedVoice = preferredVoices.find(v => v !== undefined);
+                if (selectedVoice) {
+                    currentUtterance.voice = selectedVoice;
+                    console.log('Using voice:', selectedVoice.name);
                 }
+                
+                // Start voice detection before speaking
+                startVoiceDetection();
                 
                 speechSynthesis.speak(currentUtterance);
             }
@@ -495,11 +513,25 @@
         }
         
         function startVoiceDetection() {
-            if (voiceDetection) {
+            if (voiceDetection && !voiceDetection.started) {
                 try {
                     voiceDetection.start();
+                    voiceDetection.started = true;
+                    console.log('Voice detection started');
                 } catch (e) {
-                    console.log('Voice detection already running');
+                    console.log('Voice detection error:', e);
+                }
+            }
+        }
+        
+        function stopVoiceDetection() {
+            if (voiceDetection && voiceDetection.started) {
+                try {
+                    voiceDetection.stop();
+                    voiceDetection.started = false;
+                    console.log('Voice detection stopped');
+                } catch (e) {
+                    console.log('Voice detection stop error:', e);
                 }
             }
         }
@@ -508,12 +540,13 @@
             // Auto-start listening after TTS finishes
             if (currentUtterance) {
                 currentUtterance.onend = () => {
+                    stopVoiceDetection(); // Stop voice detection when TTS ends
                     setTimeout(() => {
                         if (!isListening) {
                             startListening();
-                            document.getElementById('status').textContent = '🎤 Auto-listening activated. Start speaking your answer...';
+                            document.getElementById('status').textContent = '🎤 Ready for your answer. Speak now...';
                         }
-                    }, 1000);
+                    }, 500); // Reduced delay for faster response
                 };
             }
         }
@@ -559,10 +592,20 @@
             }
         }
         
-        // Load voices when available
+        // Load voices when available and log them for debugging
         speechSynthesis.onvoiceschanged = () => {
-            console.log('Voices loaded:', speechSynthesis.getVoices().length);
+            const voices = speechSynthesis.getVoices();
+            console.log('Voices loaded:', voices.length);
+            
+            // Log available English voices for debugging
+            const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+            console.log('English voices:', englishVoices.map(v => `${v.name} (${v.lang})`));
         };
+        
+        // Initialize voices immediately if already loaded
+        if (speechSynthesis.getVoices().length > 0) {
+            speechSynthesis.onvoiceschanged();
+        }
     </script>
 </body>
 </html>
