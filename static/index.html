@@ -5,15 +5,188 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Excel Mock Interviewer</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        .container { background: #f5f5f5; padding: 20px; border-radius: 10px; margin: 20px 0; }
-        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; }
-        .timer { font-size: 24px; color: #dc3545; font-weight: bold; }
-        .question { background: white; padding: 15px; border-radius: 5px; margin: 10px 0; }
-        .feedback { background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; }
-        .summary { background: #fff3cd; padding: 15px; border-radius: 5px; white-space: pre-line; }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 20px; 
+            margin: 30px 0; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+        }
+        h1 { 
+            text-align: center; 
+            color: white; 
+            font-size: 2.5em; 
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        h2 { 
+            color: #4a5568; 
+            border-bottom: 3px solid #667eea; 
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        p { 
+            text-align: center; 
+            color: white; 
+            font-size: 1.1em;
+            margin-bottom: 30px;
+        }
+        button { 
+            background: linear-gradient(45deg, #667eea, #764ba2); 
+            color: white; 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 25px; 
+            cursor: pointer; 
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        button:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        .timer-container {
+            text-align: center;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            border-radius: 15px;
+            color: white;
+        }
+        .timer { 
+            font-size: 28px; 
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        .question-container {
+            margin: 25px 0;
+        }
+        .question { 
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+            color: white;
+            padding: 25px; 
+            border-radius: 15px; 
+            margin: 15px 0;
+            font-size: 18px;
+            line-height: 1.6;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .intro-question {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .answer-section {
+            margin: 25px 0;
+        }
+        textarea { 
+            width: 100%; 
+            height: 120px; 
+            margin: 15px 0; 
+            padding: 15px; 
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .audio-controls { 
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .audio-btn { 
+            background: linear-gradient(45deg, #11998e, #38ef7d); 
+            min-width: 120px;
+            font-size: 14px;
+        }
+        .audio-btn:hover { 
+            background: linear-gradient(45deg, #0f8a7e, #32d96f);
+        }
+        .recording { 
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24) !important;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .voice-input-container {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        .status { 
+            font-size: 14px; 
+            color: #667eea; 
+            margin: 10px 0;
+            text-align: center;
+            font-weight: 500;
+        }
+        .feedback { 
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); 
+            padding: 20px; 
+            border-radius: 15px; 
+            margin: 20px 0;
+            border-left: 5px solid #38a169;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .summary { 
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); 
+            padding: 25px; 
+            border-radius: 15px; 
+            white-space: pre-line;
+            font-size: 16px;
+            line-height: 1.8;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .submit-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+        ul {
+            text-align: left;
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        li {
+            margin: 10px 0;
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
@@ -35,11 +208,27 @@
 
     <div id="interview-screen" style="display: none;">
         <div class="container">
-            <div class="timer">Time: <span id="timer">60</span>s</div>
-            <div id="intro" class="question"></div>
-            <div id="question" class="question"></div>
-            <textarea id="answer" placeholder="Type your answer here..."></textarea>
-            <button onclick="submitAnswer()">Submit Answer</button>
+            <div class="timer-container">
+                <div class="timer">⏰ Time: <span id="timer">60</span>s</div>
+            </div>
+            
+            <div class="question-container">
+                <div id="intro" class="question intro-question"></div>
+                <div id="question" class="question"></div>
+            </div>
+            
+            <div class="voice-input-container">
+                <div class="audio-controls">
+                    <button class="audio-btn" onclick="toggleListening()" id="voiceBtn">🎤 Voice Input</button>
+                    <button class="audio-btn" onclick="speakQuestion()" id="speakBtn">🔊 Repeat Question</button>
+                </div>
+                
+                <div class="answer-section">
+                    <textarea id="answer" placeholder="Type your answer here or use voice input above..."></textarea>
+                </div>
+                
+                <div id="status" class="status"></div>
+                <button class="submit-btn" onclick="submitAnswer()">📝 Submit Answer</button>
             <div id="feedback" class="feedback" style="display: none;"></div>
         </div>
     </div>
@@ -48,13 +237,51 @@
         <div class="container">
             <h2>🎉 Interview Complete!</h2>
             <div id="summary" class="summary"></div>
-            <button onclick="location.reload()">Take Another Interview</button>
+            <div class="action-buttons">
+                <button onclick="location.reload()">🔄 Take Another Interview</button>
+                <button class="audio-btn" onclick="speakText(document.getElementById('summary').textContent)">🔊 Read Summary</button>
+            </div>
         </div>
     </div>
 
     <script>
         let timerInterval;
         let timeLeft = 60;
+        let recognition;
+        let isListening = false;
+        let currentQuestionText = '';
+        
+        // Initialize speech recognition
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            
+            recognition.onstart = () => {
+                document.getElementById('status').textContent = '🎤 Listening...';
+                document.getElementById('voiceBtn').classList.add('recording');
+            };
+            
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                document.getElementById('answer').value = transcript;
+            };
+            
+            recognition.onerror = (event) => {
+                document.getElementById('status').textContent = 'Voice input error: ' + event.error;
+                stopListening();
+            };
+            
+            recognition.onend = () => {
+                if (isListening) {
+                    recognition.start(); // Restart if still supposed to be listening
+                }
+            };
+        }
 
         async function startInterview() {
             try {
@@ -70,7 +297,11 @@
                 document.getElementById('interview-screen').style.display = 'block';
                 
                 document.getElementById('intro').innerHTML = data.intro;
+                currentQuestionText = data.question;
                 document.getElementById('question').innerHTML = '<strong>Question:</strong> ' + data.question;
+                
+                // Auto-speak the question
+                setTimeout(() => speakText(data.intro + '. ' + data.question), 500);
                 
                 timeLeft = data.timer || 60;
                 startTimer();
@@ -115,11 +346,15 @@
                 } else {
                     // Next question
                     setTimeout(() => {
+                        currentQuestionText = data.question;
                         document.getElementById('question').innerHTML = '<strong>Question:</strong> ' + data.question;
                         document.getElementById('answer').value = '';
                         document.getElementById('feedback').style.display = 'none';
                         timeLeft = data.timer || 60;
                         startTimer();
+                        
+                        // Auto-speak feedback and next question
+                        speakText(data.feedback + '. Next question: ' + data.question);
                     }, 2000);
                 }
             } catch (error) {
@@ -154,15 +389,66 @@
                     document.getElementById('feedback').style.display = 'block';
                     
                     setTimeout(() => {
+                        currentQuestionText = data.question;
                         document.getElementById('question').innerHTML = '<strong>Question:</strong> ' + data.question;
                         document.getElementById('answer').value = '';
                         document.getElementById('feedback').style.display = 'none';
                         timeLeft = data.timer || 60;
                         startTimer();
+                        
+                        // Auto-speak next question after timeout
+                        speakText('Time is up. Next question: ' + data.question);
                     }, 2000);
                 }
             } catch (error) {
                 alert('Timeout error: ' + error.message);
+            }
+        }
+        
+        // Audio functions
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.9;
+                utterance.pitch = 1;
+                speechSynthesis.speak(utterance);
+            }
+        }
+        
+        function speakQuestion() {
+            if (currentQuestionText) {
+                speakText(currentQuestionText);
+            }
+        }
+        
+        function toggleListening() {
+            if (!recognition) {
+                alert('Voice input not supported in this browser. Please use Chrome or Edge.');
+                return;
+            }
+            
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        }
+        
+        function startListening() {
+            if (recognition && !isListening) {
+                isListening = true;
+                recognition.start();
+                document.getElementById('voiceBtn').textContent = '⏹️ Stop';
+            }
+        }
+        
+        function stopListening() {
+            if (recognition && isListening) {
+                isListening = false;
+                recognition.stop();
+                document.getElementById('voiceBtn').textContent = '🎤 Voice';
+                document.getElementById('voiceBtn').classList.remove('recording');
+                document.getElementById('status').textContent = '';
             }
         }
     </script>
