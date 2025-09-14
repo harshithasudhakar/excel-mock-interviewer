@@ -8,7 +8,11 @@ import html
 
 class ExcelInterviewer:
     def __init__(self, api_key: str):
-        self.client = Groq(api_key=api_key)
+        self.client = Groq(
+            api_key=api_key,
+            timeout=30.0,  # 30 second timeout
+            max_retries=3   # Retry failed requests
+        )
         
     def start_interview(self, session: InterviewSession) -> str:
         session.state = InterviewState.INTRO
@@ -279,12 +283,23 @@ Return only the question text in a friendly, conversational tone."""
             print(f"Previous questions count: {len(asked_questions) if 'asked_questions' in locals() else 0}")
             print(f"Prompt length: {len(prompt)} chars")
             
-            response = self.client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=400  # Increased for complete questions
-            )
+            # Add timeout and retry for Railway deployment
+            import time
+            for attempt in range(3):
+                try:
+                    response = self.client.chat.completions.create(
+                        model="llama-3.1-8b-instant",
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.7,
+                        max_tokens=400,
+                        timeout=30  # 30 second timeout
+                    )
+                    break  # Success, exit retry loop
+                except Exception as retry_error:
+                    print(f"Attempt {attempt + 1} failed: {retry_error}")
+                    if attempt == 2:  # Last attempt
+                        raise retry_error
+                    time.sleep(2)  # Wait 2 seconds before retry
             
             generated_question = response.choices[0].message.content.strip()
             print(f"Generated question: {generated_question}")

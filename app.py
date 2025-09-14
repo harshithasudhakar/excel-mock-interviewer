@@ -29,6 +29,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+
+# Check if running on Railway
+RAILWAY_ENVIRONMENT = os.getenv("RAILWAY_ENVIRONMENT_NAME", "local")
+print(f"Running in environment: {RAILWAY_ENVIRONMENT}")
+print(f"Groq API key configured: {bool(GROQ_API_KEY)}")
+
 excel_interviewer = ExcelInterviewer(api_key=GROQ_API_KEY)
 
 # Store session in memory (single user for MVP)
