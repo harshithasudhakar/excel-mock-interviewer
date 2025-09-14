@@ -3,8 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+
 from pydantic import BaseModel
 
 # Use ExcelInterviewer for interview logic
@@ -15,20 +14,10 @@ import os
 
 app = FastAPI()
 
-# Add CORS for frontend
-from fastapi.middleware.cors import CORSMiddleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for deployment
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,8 +41,7 @@ class AnswerRequest(BaseModel):
     answer: str
 
 
-# Serve React static files
-app.mount("/static", StaticFiles(directory="frontend/build/static"), name="static")
+
 
 @app.get("/api")
 def api_root():
@@ -64,15 +52,8 @@ def health_check():
     return {"status": "healthy", "groq_key_set": bool(GROQ_API_KEY)}
 
 @app.get("/")
-def serve_frontend():
-    return FileResponse("frontend/build/index.html")
-
-@app.get("/{path:path}")
-def serve_frontend_routes(path: str):
-    # Serve React app for all non-API routes
-    if path.startswith("api/"):
-        return {"error": "API endpoint not found"}
-    return FileResponse("frontend/build/index.html")
+def root():
+    return {"message": "Excel Mock Interviewer API", "status": "running", "endpoints": ["/api/start", "/api/answer", "/api/timeout", "/api/summary"]}
 
 @app.post("/api/start")
 def start_interview():
