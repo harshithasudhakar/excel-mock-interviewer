@@ -52,29 +52,8 @@ def api_root():
 def health_check():
     return {"status": "healthy", "groq_key_set": bool(GROQ_API_KEY)}
 
-# Check if React build exists, otherwise use static HTML
-if os.path.exists("frontend/build/index.html"):
-    # Serve React build
-    app.mount("/static", StaticFiles(directory="frontend/build/static"), name="static")
-    app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
-else:
-    # Serve static HTML
-    app.mount("/static", StaticFiles(directory="static"), name="static")
-    
-    @app.get("/", response_class=HTMLResponse)
-    def root():
-        try:
-            with open("static/index.html", "r") as f:
-                return HTMLResponse(f.read())
-        except:
-            return HTMLResponse("""
-<!DOCTYPE html>
-<html><head><title>Excel Mock Interviewer</title></head>
-<body>
-<h1>🎯 Excel Mock Interviewer</h1>
-<p>API is running. Use /api/start to begin.</p>
-</body></html>
-            """)
+# Mount static files AFTER API routes to avoid conflicts
+# This is done at the end of the file
 
 @app.post("/api/start")
 def start_interview():
@@ -210,3 +189,27 @@ def get_summary():
         return JSONResponse({"summary": summary, "score": overall_score})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+# Mount static files AFTER all API routes
+if os.path.exists("frontend/build/index.html"):
+    # Serve React build
+    app.mount("/static", StaticFiles(directory="frontend/build/static"), name="static")
+    app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
+else:
+    # Serve static HTML
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+    
+    @app.get("/", response_class=HTMLResponse)
+    def root():
+        try:
+            with open("static/index.html", "r") as f:
+                return HTMLResponse(f.read())
+        except:
+            return HTMLResponse("""
+<!DOCTYPE html>
+<html><head><title>Excel Mock Interviewer</title></head>
+<body>
+<h1>🎯 Excel Mock Interviewer</h1>
+<p>API is running. Use /api/start to begin.</p>
+</body></html>
+            """)
