@@ -106,6 +106,8 @@ Please retake the interview for a complete evaluation.
 
 Status: Completed
 Assessment Complete"""
+            session.add_message("assistant", basic_summary)
+            session.state = InterviewState.COMPLETED
             return basic_summary
         
         # Calculate averages using list comprehension
@@ -158,22 +160,13 @@ Assessment Complete"""
             "INTERVIEW TRANSCRIPT",
         ])
         
-        # Add question-by-question transcript from conversation history
-        question_count = 0
-        for i, msg in enumerate(session.conversation_history):
-            if msg["role"] == "assistant" and "Q:" not in msg["content"] and "EXCEL SKILLS" not in msg["content"] and "Hello!" not in msg["content"]:
-                question_count += 1
-                summary_parts.append(f"Q{question_count}: {msg['content']}")
-                # Find the corresponding user answer
-                if i + 1 < len(session.conversation_history) and session.conversation_history[i + 1]["role"] == "user":
-                    answer = session.conversation_history[i + 1]["content"]
-                    summary_parts.append(f"A{question_count}: {answer}")
-                    # Add feedback if available
-                    if question_count <= len(session.responses):
-                        feedback = session.responses[question_count - 1].feedback
-                        if feedback != "Response recorded. Moving to next question.":
-                            summary_parts.append(f"Feedback: {feedback}")
-                summary_parts.append("")
+        # Add question-by-question transcript
+        for i, response in enumerate(session.responses, 1):
+            summary_parts.append(f"Q{i}: [Question {i} from interview]")
+            summary_parts.append(f"A{i}: {html.escape(response.answer[:100])}{'...' if len(response.answer) > 100 else ''}")
+            summary_parts.append(f"Score: {((response.technical_score + response.efficiency_score + response.practices_score + response.communication_score) / 4):.1f}/10")
+            summary_parts.append(f"Feedback: {html.escape(response.feedback)}")
+            summary_parts.append("")
         
         summary_parts.extend([
             "RECOMMENDATION",

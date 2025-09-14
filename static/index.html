@@ -239,7 +239,7 @@
             <div id="summary" class="summary"></div>
             <div class="action-buttons">
                 <button onclick="location.reload()">🔄 Take Another Interview</button>
-                <button class="audio-btn" onclick="speakText(document.getElementById('summary').textContent)">🔊 Read Summary</button>
+                <button class="audio-btn" onclick="speakTextNaturally(document.getElementById('summary').textContent)">🔊 Read Summary</button>
             </div>
         </div>
     </div>
@@ -250,8 +250,11 @@
         let recognition;
         let isListening = false;
         let currentQuestionText = '';
+        let currentUtterance = null;
+        let voiceDetection = null;
+        let questionCount = 0;
         
-        // Initialize speech recognition
+        // Initialize speech recognition for answers
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
             recognition.continuous = true;
@@ -259,7 +262,7 @@
             recognition.lang = 'en-US';
             
             recognition.onstart = () => {
-                document.getElementById('status').textContent = '🎤 Listening...';
+                document.getElementById('status').textContent = '🎤 Listening for your answer...';
                 document.getElementById('voiceBtn').classList.add('recording');
             };
             
@@ -278,7 +281,29 @@
             
             recognition.onend = () => {
                 if (isListening) {
-                    recognition.start(); // Restart if still supposed to be listening
+                    recognition.start();
+                }
+            };
+        }
+        
+        // Initialize voice detection for auto-pause
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            voiceDetection = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            voiceDetection.continuous = true;
+            voiceDetection.interimResults = true;
+            voiceDetection.lang = 'en-US';
+            
+            voiceDetection.onresult = () => {
+                // User is speaking - pause TTS
+                if (currentUtterance && speechSynthesis.speaking) {
+                    speechSynthesis.pause();
+                }
+            };
+            
+            voiceDetection.onspeechend = () => {
+                // User stopped speaking - resume TTS
+                if (currentUtterance && speechSynthesis.paused) {
+                    setTimeout(() => speechSynthesis.resume(), 500);
                 }
             };
         }
@@ -299,11 +324,16 @@
                 document.getElementById('intro').innerHTML = data.intro;
                 currentQuestionText = data.question;
                 document.getElementById('question').innerHTML = '<strong>Question:</strong> ' + data.question;
+                questionCount = 1;
                 
-                // Auto-speak the question
-                setTimeout(() => speakText(data.intro + '. ' + data.question), 500);
+                // Auto-speak with natural voice and start voice detection
+                setTimeout(() => {
+                    speakTextNaturally(data.intro + '. ' + data.question);
+                    startVoiceDetection();
+                    startAutoListening();
+                }, 500);
                 
-                timeLeft = data.timer || 60;
+                timeLeft = getDifficultyTime(questionCount);
                 startTimer();
             } catch (error) {
                 alert('Failed to start interview: ' + error.message);
@@ -318,6 +348,7 @@
             }
 
             clearInterval(timerInterval);
+            stopListening();
 
             try {
                 const response = await fetch('/api/answer', {
@@ -338,23 +369,35 @@
 
                 if (data.completed) {
                     // Show summary
+                    console.log('Interview completed, summary:', data.summary);
                     setTimeout(() => {
                         document.getElementById('interview-screen').style.display = 'none';
                         document.getElementById('summary-screen').style.display = 'block';
-                        document.getElementById('summary').innerHTML = data.summary;
+                        document.getElementById('summary').innerHTML = data.summary || 'Summary generation in progress...';
+                        
+                        // Auto-speak the summary
+                        if (data.summary) {
+                            speakTextNaturally('Interview complete! Here is your assessment summary.');
+                        }
                     }, 2000);
                 } else {
                     // Next question
                     setTimeout(() => {
+                        questionCount++;
                         currentQuestionText = data.question;
                         document.getElementById('question').innerHTML = '<strong>Question:</strong> ' + data.question;
                         document.getElementById('answer').value = '';
                         document.getElementById('feedback').style.display = 'none';
-                        timeLeft = data.timer || 60;
+                        
+                        // Difficulty-based timing
+                        timeLeft = getDifficultyTime(questionCount);
                         startTimer();
                         
                         // Auto-speak feedback and next question
-                        speakText(data.feedback + '. Next question: ' + data.question);
+                        setTimeout(() => {
+                            speakTextNaturally(data.feedback + '. Next question: ' + data.question);
+                            startAutoListening();
+                        }, 500);
                     }, 2000);
                 }
             } catch (error) {
@@ -381,23 +424,32 @@
                 const data = await response.json();
 
                 if (data.completed) {
+                    console.log('Timeout completed, summary:', data.summary);
                     document.getElementById('interview-screen').style.display = 'none';
                     document.getElementById('summary-screen').style.display = 'block';
-                    document.getElementById('summary').innerHTML = data.summary;
+                    document.getElementById('summary').innerHTML = data.summary || 'Generating your assessment report...';
+                    
+                    // Auto-speak the summary
+                    if (data.summary) {
+                        speakTextNaturally('Time is up! Here is your final assessment.');
+                    }
                 } else {
                     document.getElementById('feedback').innerHTML = data.feedback;
                     document.getElementById('feedback').style.display = 'block';
                     
                     setTimeout(() => {
+                        questionCount++;
                         currentQuestionText = data.question;
                         document.getElementById('question').innerHTML = '<strong>Question:</strong> ' + data.question;
                         document.getElementById('answer').value = '';
                         document.getElementById('feedback').style.display = 'none';
-                        timeLeft = data.timer || 60;
+                        
+                        timeLeft = getDifficultyTime(questionCount);
                         startTimer();
                         
                         // Auto-speak next question after timeout
-                        speakText('Time is up. Next question: ' + data.question);
+                        speakTextNaturally('Time is up. Next question: ' + data.question);
+                        startAutoListening();
                     }, 2000);
                 }
             } catch (error) {
@@ -405,19 +457,70 @@
             }
         }
         
-        // Audio functions
-        function speakText(text) {
+        // Enhanced audio functions
+        function speakTextNaturally(text) {
             if ('speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.rate = 0.9;
-                utterance.pitch = 1;
-                speechSynthesis.speak(utterance);
+                // Stop any current speech
+                speechSynthesis.cancel();
+                
+                currentUtterance = new SpeechSynthesisUtterance(text);
+                
+                // Make it sound more natural
+                currentUtterance.rate = 0.85;
+                currentUtterance.pitch = 0.95;
+                currentUtterance.volume = 0.9;
+                
+                // Try to use a more natural voice
+                const voices = speechSynthesis.getVoices();
+                const naturalVoice = voices.find(voice => 
+                    voice.name.includes('Natural') || 
+                    voice.name.includes('Enhanced') ||
+                    voice.name.includes('Premium') ||
+                    (voice.lang.startsWith('en') && voice.localService)
+                );
+                
+                if (naturalVoice) {
+                    currentUtterance.voice = naturalVoice;
+                }
+                
+                speechSynthesis.speak(currentUtterance);
+            }
+        }
+        
+        function getDifficultyTime(questionNum) {
+            // Progressive difficulty timing
+            if (questionNum <= 2) return 90;  // Beginner: 90 seconds
+            if (questionNum <= 4) return 120; // Intermediate: 2 minutes
+            return 150; // Advanced: 2.5 minutes
+        }
+        
+        function startVoiceDetection() {
+            if (voiceDetection) {
+                try {
+                    voiceDetection.start();
+                } catch (e) {
+                    console.log('Voice detection already running');
+                }
+            }
+        }
+        
+        function startAutoListening() {
+            // Auto-start listening after TTS finishes
+            if (currentUtterance) {
+                currentUtterance.onend = () => {
+                    setTimeout(() => {
+                        if (!isListening) {
+                            startListening();
+                            document.getElementById('status').textContent = '🎤 Auto-listening activated. Start speaking your answer...';
+                        }
+                    }, 1000);
+                };
             }
         }
         
         function speakQuestion() {
             if (currentQuestionText) {
-                speakText(currentQuestionText);
+                speakTextNaturally(currentQuestionText);
             }
         }
         
@@ -437,8 +540,12 @@
         function startListening() {
             if (recognition && !isListening) {
                 isListening = true;
-                recognition.start();
-                document.getElementById('voiceBtn').textContent = '⏹️ Stop';
+                try {
+                    recognition.start();
+                    document.getElementById('voiceBtn').textContent = '⏹️ Stop Voice';
+                } catch (e) {
+                    console.log('Recognition already running');
+                }
             }
         }
         
@@ -446,11 +553,16 @@
             if (recognition && isListening) {
                 isListening = false;
                 recognition.stop();
-                document.getElementById('voiceBtn').textContent = '🎤 Voice';
+                document.getElementById('voiceBtn').textContent = '🎤 Voice Input';
                 document.getElementById('voiceBtn').classList.remove('recording');
-                document.getElementById('status').textContent = '';
+                document.getElementById('status').textContent = 'Voice input stopped.';
             }
         }
+        
+        // Load voices when available
+        speechSynthesis.onvoiceschanged = () => {
+            console.log('Voices loaded:', speechSynthesis.getVoices().length);
+        };
     </script>
 </body>
 </html>
