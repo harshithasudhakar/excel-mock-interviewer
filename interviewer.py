@@ -229,13 +229,21 @@ Assessment Complete"""
         # Get example questions for the LLM
         example_questions = get_questions_by_difficulty(difficulty)
         
-        # Build context from previous responses
+        # Build context from previous responses and questions
         performance_context = ""
+        previous_questions = ""
+        
         if session.responses:
             recent_scores = [(r.technical_score + r.efficiency_score + r.practices_score + r.communication_score) / 4 
                            for r in session.responses[-2:]]
             avg_recent = sum(recent_scores) / len(recent_scores)
             performance_context = f"Recent performance: {avg_recent:.1f}/10. "
+            
+        # Get previous questions to avoid repetition
+        if hasattr(session, 'messages') and session.messages:
+            asked_questions = [msg.content for msg in session.messages if msg.role == 'assistant' and '?' in msg.content]
+            if asked_questions:
+                previous_questions = f"\nPrevious questions asked:\n{chr(10).join([f'- {q[:80]}...' for q in asked_questions[-3:]])}"
         
         # Create conversational prompt for LLM to generate question
         conversation_starters = {
@@ -254,6 +262,9 @@ Start with: "{starter}"
 
 Example {difficulty.value} questions:
 {chr(10).join([f"- {q.question}" for q in example_questions[:2]])}
+{previous_questions}
+
+IMPORTANT: Generate a NEW question that is DIFFERENT from any previous questions. Avoid repeating topics or scenarios.
 
 Generate a conversational, scenario-based Excel question that tests {difficulty.value} skills. 
 Make it sound like you're asking a colleague about a real work situation.
