@@ -7,7 +7,7 @@ import random
 import html
 
 class ExcelInterviewer:
-    def __init__(self, api_key: str, openai_key: str = None):
+    def __init__(self, api_key: str, hf_token: str = None):
         self.groq_client = None
         self.openai_client = None
         
@@ -24,10 +24,10 @@ class ExcelInterviewer:
                 print(f"Failed to initialize Groq client: {e}")
         
         # Try Hugging Face as free fallback
-        if openai_key:  # Reuse this param for HF token
+        if hf_token:
             try:
                 import requests
-                self.hf_token = openai_key
+                self.hf_token = hf_token
                 self.hf_client = True
                 print(f"Hugging Face client initialized as fallback")
             except Exception as e:
